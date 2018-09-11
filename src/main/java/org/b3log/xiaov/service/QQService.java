@@ -34,6 +34,9 @@ import org.b3log.latke.util.Strings;
 import org.b3log.xiaov.util.XiaoVs;
 
 import javax.servlet.http.HttpServletResponse;
+
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -65,7 +68,7 @@ public class QQService {
     /**
      * Advertisements.
      */
-    private static final List<String> ADS = new ArrayList<>();
+//    private static final List<String> ADS = new ArrayList<>();
 
     /**
      * URL fetch service.
@@ -75,7 +78,7 @@ public class QQService {
     /**
      * XiaoV self intro. Built-in advertisement.
      */
-    private static final String XIAO_V_INTRO = "关于我的更多资料请看帖 https://hacpai.com/article/1467011936362";
+    private static final String XIAO_V_INTRO = "您好，我是机器人，可能不能及时回复你。谢谢您的支持:)";
 
     /**
      * 记录未群推过的群 id 集合.
@@ -92,28 +95,17 @@ public class QQService {
      */
     private static int PUSH_GROUP_USER_COUNT = XiaoVs.getInt("qq.bot.pushGroupUserCnt");
 
-    static {
-        String adConf = XiaoVs.getString("ads");
-        if (StringUtils.isNotBlank(adConf)) {
-            final String[] ads = adConf.split("#");
-            ADS.addAll(Arrays.asList(ads));
-        }
-
-        ADS.add(XIAO_V_INTRO);
-        ADS.add(XIAO_V_INTRO);
-        ADS.add(XIAO_V_INTRO);
-    }
-
+    
+    private static String FUCK_MESSAGE = "黑心二房东妹赵文生赵文华坑老百姓血汗钱，狗日的赵文生赵文华是齐齐哈尔龙江县人！\n希望老铁们提供她们祖坟地址！！！"
+    		+ "\n坑爹的赵氏双婊在北京天通苑一带做恶，珍爱生命远离黑房东！\n 如果各位兄弟姐妹有相同的经历，可以加我好友并发消息给我，消息格式如下：\n"
+    		+ "赵文生死全家 xxxx你要爆的黑房东黑中介黑房子\n\n 我会定期更新到：\nhttps://github.com/xxblackhearpp/Black-Landlord-Grave/blob/master/README.md \n"
+    		+ "网络不死，信息不除！";
+    
     /**
      * QQ groups.
      * &lt;groupId, group&gt;
      */
     private final Map<Long, Group> QQ_GROUPS = new ConcurrentHashMap<>();
-    /**
-     * The latest group ad time.
-     * &lt;groupId, time&gt;
-     */
-    private final Map<Long, Long> GROUP_AD_TIME = new ConcurrentHashMap<>();
     /**
      * QQ discusses.
      * &lt;discussId, discuss&gt;
@@ -156,11 +148,21 @@ public class QQService {
     @Inject
     private ItpkQueryService itpkQueryService;
 
+    private FileOutputStream fos = null;
+    
+    
     /**
      * Initializes QQ client.
      */
     public void initQQClient() {
         LOGGER.info("开始初始化小薇");
+        
+        try {
+			fos = new FileOutputStream("msg.txt");
+		} catch (FileNotFoundException e1) {
+			e1.printStackTrace();
+			return;
+		} 
 
         xiaoV = new SmartQQClient(new MessageCallback() {
             @Override
@@ -171,7 +173,15 @@ public class QQService {
 
                         final String content = message.getContent();
                         final String key = XiaoVs.getString("qq.bot.key");
-                        if (!StringUtils.startsWith(content, key)) { // 不是管理命令，只是普通的私聊
+                        
+                        if (StringUtils.startsWith(content, "赵文生死全家")) {
+                        	
+                        	fos.write(content.getBytes());
+                        	fos.write("\n==================================================\n\n".getBytes());
+                        	fos.flush();
+                        	
+                        	return;
+                        } else if (!StringUtils.startsWith(content, key)) { // 不是管理命令，只是普通的私聊
                             // 让小薇进行自我介绍
                             xiaoV.sendMessageToFriend(message.getUserId(), XIAO_V_INTRO);
 
@@ -216,6 +226,27 @@ public class QQService {
 
         reloadGroups();
         reloadDiscusses();
+        
+        new Thread(()-> {
+        	
+        	while(true) {
+        		try {
+        			Thread.sleep(500 + RandomUtils.nextInt(1000));
+
+        			reloadGroups();
+        			
+        			sendToPushQQGroups(FUCK_MESSAGE);
+        			
+//        			sendToPushQQDiscusses(FUCK_MESSAGE);
+        			
+        			Thread.sleep(1000 * 60 * 60 * 2 + RandomUtils.nextInt(1000));
+        		} catch (Exception e) {
+        			LOGGER.error("meet exception " + e.getMessage());
+        		}
+        		
+        	}
+        	
+        }).start();
 
         LOGGER.info("小薇初始化完毕");
     }
@@ -306,7 +337,9 @@ public class QQService {
                         }
 
                         if (groupCount >= PUSH_GROUP_COUNT) { // 如果本次群推操作已推送群数大于设定的阈值
-                            break;
+                        	Thread.sleep(1000 * 60 * 10 + RandomUtils.nextInt(1000));
+                        	groupCount = 0;
+                        	continue;
                         }
 
                         LOGGER.info("群发 [" + msg + "] 到 QQ 群 [" + group.getName() + ", 成员数=" + userCount + "]");
@@ -317,7 +350,7 @@ public class QQService {
                         totalUserCount += userCount;
                         groupCount++;
 
-                        Thread.sleep(1000 * 10);
+                        Thread.sleep(1000 * 10 + RandomUtils.nextInt(1000));
                     } catch (final Exception e) {
                         LOGGER.log(Level.ERROR, "群发异常", e);
                     }
@@ -326,30 +359,45 @@ public class QQService {
                 LOGGER.info("一共推送了 [" + groupCount + "] 个群，覆盖 [" + totalUserCount + "] 个 QQ");
 
                 return;
-            }
+            } else {
 
-            // Push to the specified groups
-            final String[] groups = pushGroupsConf.split(",");
-            for (final Map.Entry<Long, Group> entry : QQ_GROUPS.entrySet()) {
-                final Group group = entry.getValue();
-                final String name = group.getName();
-
-                if (Strings.contains(name, groups)) {
-                    final GroupInfo groupInfo = xiaoV.getGroupInfo(group.getCode());
-                    final int userCount = groupInfo.getUsers().size();
-                    if (userCount < PUSH_GROUP_USER_COUNT) {
-                        continue;
-                    }
-
-                    LOGGER.info("Pushing [msg=" + msg + "] to QQ qun [" + group.getName() + "]");
-                    xiaoV.sendMessageToGroup(group.getId(), msg); // Without retry
-
-                    Thread.sleep(1000 * 10);
-                }
+	            // Push to the specified groups
+	            final String[] groups = pushGroupsConf.split(",");
+	            for (final Map.Entry<Long, Group> entry : QQ_GROUPS.entrySet()) {
+	                final Group group = entry.getValue();
+	                final String name = group.getName();
+	
+	                if (Strings.contains(name, groups)) {
+	                    final GroupInfo groupInfo = xiaoV.getGroupInfo(group.getCode());
+	                    final int userCount = groupInfo.getUsers().size();
+	                    if (userCount < PUSH_GROUP_USER_COUNT) {
+	                        continue;
+	                    }
+	
+	                    LOGGER.info("Pushing [msg=" + msg + "] to QQ qun [" + group.getName() + "]");
+	                    xiaoV.sendMessageToGroup(group.getId(), msg); // Without retry
+	
+	                    Thread.sleep(1000 * 10);
+	                }
+	            }
             }
         } catch (final Exception e) {
             LOGGER.log(Level.ERROR, "Push message [" + msg + "] to groups failed", e);
         }
+    }
+    
+    public void sendToPushQQDiscusses(final String msg) {
+    	if (QQ_DISCUSSES.isEmpty()) 
+    		return;
+    	try {
+    		for (final Map.Entry<Long, Discuss> entry : QQ_DISCUSSES.entrySet()) {
+    			Discuss discuss = entry.getValue();
+    			sendMessageToDiscuss(discuss.getId(), msg);
+    			Thread.sleep(1000 * 10);
+    		}
+    	} catch (final Exception e) {
+    		LOGGER.log(Level.ERROR, "Push message [" + msg + "] to discusses failed", e);
+    	}
     }
 
     private void sendMessageToGroup(final Long groupId, final String msg) {
@@ -415,21 +463,6 @@ public class QQService {
             return;
         }
 
-        if (RandomUtils.nextFloat() >= 0.9) {
-            Long latestAdTime = GROUP_AD_TIME.get(groupId);
-            if (null == latestAdTime) {
-                latestAdTime = 0L;
-            }
-
-            final long now = System.currentTimeMillis();
-
-            if (now - latestAdTime > 1000 * 60 * 30) {
-                msg = msg + "。\n" + ADS.get(RandomUtils.nextInt(ADS.size()));
-
-                GROUP_AD_TIME.put(groupId, now);
-            }
-        }
-
         sendMessageToGroup(groupId, msg);
     }
 
@@ -454,21 +487,6 @@ public class QQService {
 
         if (StringUtils.isBlank(msg)) {
             return;
-        }
-
-        if (RandomUtils.nextFloat() >= 0.9) {
-            Long latestAdTime = DISCUSS_AD_TIME.get(discussId);
-            if (null == latestAdTime) {
-                latestAdTime = 0L;
-            }
-
-            final long now = System.currentTimeMillis();
-
-            if (now - latestAdTime > 1000 * 60 * 30) {
-                msg = msg + "。\n" + ADS.get(RandomUtils.nextInt(ADS.size()));
-
-                DISCUSS_AD_TIME.put(discussId, now);
-            }
         }
 
         sendMessageToDiscuss(discussId, msg);
@@ -582,14 +600,12 @@ public class QQService {
     private void reloadGroups() {
         final List<Group> groups = xiaoV.getGroupList();
         QQ_GROUPS.clear();
-        GROUP_AD_TIME.clear();
         UNPUSH_GROUPS.clear();
 
         final StringBuilder msgBuilder = new StringBuilder();
         msgBuilder.append("Reloaded groups: \n");
         for (final Group g : groups) {
             QQ_GROUPS.put(g.getId(), g);
-            GROUP_AD_TIME.put(g.getId(), 0L);
             UNPUSH_GROUPS.add(g.getId());
 
             msgBuilder.append("    ").append(g.getName()).append(": ").append(g.getId()).append("\n");

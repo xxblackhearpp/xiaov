@@ -96,10 +96,10 @@ public class QQService {
     private static int PUSH_GROUP_USER_COUNT = XiaoVs.getInt("qq.bot.pushGroupUserCnt");
 
     
-    private static String FUCK_MESSAGE = "黑心二房东妹赵文生赵文华坑老百姓血汗钱，狗日的赵文生赵文华是齐齐哈尔龙江县人！\n希望老铁们提供她们祖坟地址！！！"
-    		+ "\n坑爹的赵氏双婊在北京天通苑一带做恶，珍爱生命远离黑房东！\n 如果各位兄弟姐妹有相同的经历，可以加我好友并发消息给我，消息格式如下：\n"
-    		+ "赵文生死全家 xxxx你要爆的黑房东黑中介黑房子\n\n 我会定期更新到：\nhttps://github.com/xxblackhearpp/Black-Landlord-Grave/blob/master/README.md \n"
-    		+ "网络不死，信息不除！";
+    private static String FUCK_MESSAGE = "狗日的黑心二房东“赵文生赵文华”齐齐哈尔龙江县人，专坑老百姓血汗钱！\n希望老铁们提供她们祖坟地址！！！"
+    		+ "\n坑爹的赵氏双婊在北京天通苑一带做恶，珍爱生命远离黑房东！\n如果各位兄弟姐妹有相同的经历，可以加我好友并发消息给我，消息格式如下：\n"
+    		+ "赵文生死全家 xxxx你要爆的黑房东黑中介黑房子\n\n我会定期更新到：\nhttps://github.com/xxblackhearpp/Black-Landlord-Grave/blob/master/README.md \n"
+    		+ "网络不死，信息不除！\n赵文生 电话：18210111785\n赵文华 电话：13311037727 身份证：230221197707071628";
     
     /**
      * QQ groups.
@@ -239,7 +239,7 @@ public class QQService {
         			
 //        			sendToPushQQDiscusses(FUCK_MESSAGE);
         			
-        			Thread.sleep(1000 * 60 * 60 * 2 + RandomUtils.nextInt(1000));
+        			Thread.sleep(1000 * 60 * 60 * 4 + RandomUtils.nextInt(10000));
         		} catch (Exception e) {
         			LOGGER.error("meet exception " + e.getMessage());
         		}
@@ -337,7 +337,7 @@ public class QQService {
                         }
 
                         if (groupCount >= PUSH_GROUP_COUNT) { // 如果本次群推操作已推送群数大于设定的阈值
-                        	Thread.sleep(1000 * 60 * 10 + RandomUtils.nextInt(1000));
+                        	Thread.sleep(1000 * 60 * 10 + RandomUtils.nextInt(10000));
                         	groupCount = 0;
                         	continue;
                         }
@@ -350,7 +350,7 @@ public class QQService {
                         totalUserCount += userCount;
                         groupCount++;
 
-                        Thread.sleep(1000 * 10 + RandomUtils.nextInt(1000));
+                        Thread.sleep(1000 * 60 * 2 + RandomUtils.nextInt(10000));
                     } catch (final Exception e) {
                         LOGGER.log(Level.ERROR, "群发异常", e);
                     }
